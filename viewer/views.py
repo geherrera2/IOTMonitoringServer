@@ -35,6 +35,7 @@ def realtime_data(request):
     if request.method == 'POST':
         data = {}
         try:
+            print("estamos en realtime_data:")
             body = json.loads(request.body.decode("utf-8"))
             action = body["action"]
             print("action:", action)
