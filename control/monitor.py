@@ -34,6 +34,7 @@ def analyze_data():
                 'station__location__country__name')
     alerts = 0
     for item in aggregation:
+        
         alert = False
 
         variable = item["measurement__name"]
@@ -45,6 +46,7 @@ def analyze_data():
         city = item['station__location__city__name']
         user = item['station__user__username']
 
+        print(item["measurement__name"], item["check_value"])
         if item["check_value"] > max_value or item["check_value"] < min_value:
             alert = True
 
@@ -105,7 +107,8 @@ def start_cron():
     Inicia el cron que se encarga de ejecutar la función analyze_data cada 5 minutos.
     '''
     print("Iniciando cron...")
-    schedule.every(5).minutes.do(analyze_data)
+    # schedule.every(1).minutes.do(analyze_data)
+    schedule.every(10).seconds.do(analyze_data)
     print("Servicio de control iniciado")
     while 1:
         schedule.run_pending()
