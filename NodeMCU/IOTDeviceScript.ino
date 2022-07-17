@@ -48,7 +48,7 @@ const char pass[] = "samuel25."; // TODO cambiar por la contraseña de la red Wi
 
 //Conexión a Mosquitto
 #define USER "user1" // TODO Reemplace UsuarioMQTT por un usuario (no administrador) que haya creado en la configuración del bróker de MQTT.
-const char MQTT_HOST[] = "3.237.234.100"; // TODO Reemplace ip.maquina.mqtt por la IP del bróker MQTT que usted desplegó. Ej: 192.168.0.1
+const char MQTT_HOST[] = "3.231.204.181"; // TODO Reemplace ip.maquina.mqtt por la IP del bróker MQTT que usted desplegó. Ej: 192.168.0.1
 const int MQTT_PORT = 8082;
 const char MQTT_USER[] = USER;
 //Contraseña de MQTT
@@ -76,7 +76,28 @@ float temp;
 float humi;
 // Valor de la medición de la luminosidad
 int lumi = 0;
+String validateAlert = "OK";
+int clearLcd = 0;
 
+
+void lcdPrintMessage(String titulo, String msg, int posUno = 0, int posDos = 0) {
+  if(clearLcd == 1){
+    lcd.clear();
+  }
+  if(titulo == ""){
+    lcd.setCursor(posUno,posDos);
+    lcd.print(msg);
+  } else {
+    lcd.setCursor(0,0);
+    lcd.print(titulo);
+    if(posUno != 0 && posDos != 0){
+      lcd.setCursor(posUno,posDos);
+    }else{
+      lcd.setCursor(0,1);
+    }
+    lcd.print(msg);
+  }
+}
 /**
  * Conecta el dispositivo con el bróker MQTT usando
  * las credenciales establecidas.
@@ -97,11 +118,12 @@ void mqtt_connect()
     } else {
       
       Serial.println("Problema con la conexión, revise los valores de las constantes MQTT");
-      lcdPrintMessage("Error:", "Conexion MQTT");
       int state = client.state();
       Serial.print("Código de error = ");
+      clearLcd = 1;
       alert = "MQTT error: " + String(state);
       Serial.println(state);
+      lcdPrintMessage("Error:", "Conexion MQTT");
       
       if ( client.state() == MQTT_CONNECT_UNAUTHORIZED ) {
         ESP.deepSleep(0);
@@ -117,10 +139,6 @@ void mqtt_connect()
  * Publica la temperatura y humedad dadas al tópico configurado usando el cliente MQTT.
  */
 void sendSensorData(float temperatura, float humedad, int luminosidad) {
-  Serial.print(temperatura);
-  Serial.print(humedad);
-  Serial.print(luminosidad);
-
   String data = "{";
   data += "\"temperatura\": "+ String(temperatura, 1) +", ";
   data += "\"humedad\": "+ String(humedad, 1) +", ";
@@ -190,7 +208,6 @@ void startDisplay() {
  */
 
 void displayHeader() {
-  // lcd.clear();
   lcd.setCursor(8,0);
   long long int milli = now + millis() / 1000;
   struct tm* tinfo;
@@ -199,12 +216,18 @@ void displayHeader() {
   
   String title = hour;
   lcd.print(title);
+
+  // lcdPrintMessage();
 }
 
 /**
  * Agrega los valores medidos de temperatura y humedad a la pantalla.
  */
 void displayMeasures() {
+  if(clearLcd == 0){
+    lcd.clear();
+    clearLcd = 2;
+  }
   lcd.setCursor(0,0);
   lcd.print("T:");
   lcd.print(temp);
@@ -220,34 +243,30 @@ void displayMeasures() {
  * Agrega el mensaje indicado a la pantalla.
  * Si el mensaje es OK, se busca mostrarlo centrado.
  */
-// void displayMessage(String message) {
-  
-//   display.setTextSize(1);
-//   display.println("\nMsg:");
-  
-//   display.setTextSize(2);
-  
-//   if (message.equals("OK")) {
-//     display.println("    " + message); 
-//   } else {
-//     display.setTextSize(2);
-//     display.println("");
-//     display.println("");
-//     display.println(message); 
-//   }
-// }
 
-void lcdPrintMessage(String titulo, String msg) {
-  // lcd.clear();
-  lcd.setCursor(0,0);
-  if(titulo == ""){
-    lcd.print(msg);
+
+void displayMessage(String message) {
+  if(clearLcd == 1){
+    lcd.clear();
+    clearLcd = 0;
+  }
+
+  if(message == "OK" ){
+    displayHeader();
+    displayMeasures();
+    digitalWrite(LEDRED, LOW);
   } else {
-    lcd.print(titulo);
-    lcd.setCursor(0,1);
-    lcd.print(msg);
+    Serial.print("validateAlert: ");
+    Serial.print(message);
+    Serial.println("");
+
+    lcd.setCursor(0,0);
+    lcd.print(message);
+    digitalWrite(LEDRED, HIGH);
   }
 }
+
+
 
 /**
  * Verifica si ha llegdo alguna alerta al dispositivo.
@@ -281,6 +300,7 @@ void receivedCallback(char* topic, byte* payload, unsigned int length) {
     data += String((char)payload[i]);
   }
   Serial.print(data);
+  clearLcd = 1;
   if (data.indexOf("ALERT") >= 0) {
     alert = data;
   }
@@ -294,7 +314,6 @@ void receivedCallback(char* topic, byte* payload, unsigned int length) {
  */
 void checkWiFi() {
 
-  // lcdPrintMessage("", "Conectando wifi");
   if (WiFi.status() != WL_CONNECTED)
   {
     Serial.print("Checking wifi");
@@ -302,6 +321,7 @@ void checkWiFi() {
     {
       WiFi.begin(ssid, pass);
       Serial.print(".");
+      clearLcd = 1;
       lcdPrintMessage("", "No hay señal WiFi");
       delay(10);
     }
@@ -428,6 +448,11 @@ int sensorLuz(){
   Serial.print("Luminosidad: ");
   Serial.print(dato);
   Serial.println("");
+  if(dato > 700){
+    digitalWrite(LEDBLUE, HIGH);
+  }else {
+    digitalWrite(LEDBLUE, LOW);
+  }
   return dato;
 }
 
@@ -468,13 +493,8 @@ void loop() {
 
   checkWiFi();
 
-  String message = checkAlert();
-
+  validateAlert = checkAlert();
   measure();
-  
-  displayHeader();
-  displayMeasures();
-  
-  // displayMessage(message);
+  displayMessage(validateAlert);
 
 }
