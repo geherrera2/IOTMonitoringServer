@@ -256,10 +256,6 @@ void displayMessage(String message) {
     displayMeasures();
     digitalWrite(LEDRED, LOW);
   } else {
-    Serial.print("validateAlert: ");
-    Serial.print(message);
-    Serial.println("");
-
     lcd.setCursor(0,0);
     lcd.print(message);
     digitalWrite(LEDRED, HIGH);
@@ -303,6 +299,8 @@ void receivedCallback(char* topic, byte* payload, unsigned int length) {
   clearLcd = 1;
   if (data.indexOf("ALERT") >= 0) {
     alert = data;
+    Serial.print(alert);
+    Serial.println("");
   }
 }
 
